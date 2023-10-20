@@ -133,7 +133,6 @@ function countDown () {
 
     if(state.values.currentTime <= 0) {
         stopGame()
-        alert(`O seu resultado foi ${state.values.result}`)
     }
 }
 
