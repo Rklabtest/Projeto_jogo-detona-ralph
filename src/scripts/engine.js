@@ -25,122 +25,79 @@ const state = {
     }
 }
 
-function changeView (caller) {
+function playSound(audioName) {
+    let audio = new Audio(`./src/audios/${audioName}`)
+    audio.volume = 0.2
+    audio.play()
+}
+
+function changeViewButtonsVisibility (caller) {
     switch (caller) {
         case 'countDownToStart':
             state.view.pauseButton.removeAttribute('disabled')
             state.view.stopButton.removeAttribute('disabled')
             state.view.startButton.classList.add('hide')
             state.view.pauseButton.classList.remove('hide')
-            state.view.message.classList.add('hide')
         break
         
         case 'startGame':
-            state.view.message.classList.remove('hide')
             state.view.startButton.setAttribute('disabled','')
             state.view.stopButton.classList.remove('hide')
         break
             
         case 'pauseGame':
-            state.view.message.classList.remove('hide')
             state.view.startButton.removeAttribute('disabled')
             state.view.startButton.classList.remove('hide')
             state.view.pauseButton.setAttribute('disabled', '')
             state.view.pauseButton.classList.add('hide')
+            
         break
 
         case 'stopGame':
             state.view.stopButton.setAttribute('disabled', '')
             state.view.stopButton.classList.add('hide')
-            state.view.message.classList.add('hide')
-        break
-
-        case 'endGame':
-            state.view.message.classList.remove('hide')
     }
 }
 
-function countDownToStart() {
-    playSound('countdown.wav')
-    state.values.startCounter--
-    state.view.message.textContent = state.values.startCounter
+function showMessage () {
 
-    if (!state.values.startCounter) {
-        clearInterval(state.actions.startCounterId)
-        playSound('goo.wav')
-        state.view.message.textContent = 'GO!'
-        
-        setTimeout(() => {
-            changeView('countDownToStart')            
-            state.actions.timerId = setInterval(randomSquare, state.values.gameVelocity)
-            state.actions.countDownTimerId = setInterval(countDown, 1000)
-
-            if(!state.values.listenersControl) {
-                addListenerHitBox()
-                addPauseEvent()
-                addStopEvent()
-                state.values.listenersControl = true // para não precisar remover e readicionar estes listeners toda vez que recomeçar o jogo.
-            }
-        }, 500)
-    }
 }
 
-function addStartEvent () {
-    state.view.startButton.addEventListener('click', startGame)
-}
-
-function startGame () {
-    state.view.message.textContent = state.values.startCounter
-    state.view.score.textContent = state.values.result
-    state.view.lives.textContent = `x${state.values.livesCounter}`
-    state.view.timeLeft.textContent = state.values.currentTime
-    state.actions.startCounterId = setInterval(countDownToStart, 500)
-    playSound('countdown.wav')
-    changeView('startGame')        
-}
-
-function addStopEvent () {
-    state.view.stopButton.addEventListener('click', stopGame)
-}
-
-function stopGame() {
-    state.view.squares.forEach(square => square.classList.remove('enemy'))
-    state.values.currentTime = 60
-    state.values.result = 0
-    state.values.startCounter = 3
-    state.values.livesCounter = 3
-    pauseGame()
-    changeView('stopGame')
-}
-
-function addPauseEvent () {
-    state.view.pauseButton.addEventListener('click', pauseGame)
-}
-
-function pauseGame() {
+function stopCountersGame () {
     state.values.hitPosition = null
     state.values.startCounter = 3
     state.view.startButton.textContent = 'Restart'
-    state.view.message.textContent = 'Pausado'
     clearInterval(state.actions.countDownTimerId)
     clearInterval(state.actions.timerId)
-    changeView('pauseGame')
+    changeViewButtonsVisibility('pauseGame')
 }
 
-function countDown () {
-    state.values.currentTime--
-    state.view.timeLeft.textContent = state.values.currentTime
-
-    if(state.values.currentTime <= 0) {
-        stopGame()
-        alert(`O seu resultado foi ${state.values.result}`)
-    }
+function pauseGame() {
+    stopCountersGame()
+    state.view.message.textContent = 'Pausado'
+    state.view.message.classList.remove('hide')
 }
 
-function playSound(audioName) {
-    let audio = new Audio(`./src/audios/${audioName}`)
-    audio.volume = 0.2
-    audio.play()
+function stopGame() {
+    const result = state.values.result
+    state.view.squares.forEach(square => square.classList.remove('enemy'))
+    state.values.currentTime = 60
+    state.values.result = 0
+    state.values.livesCounter = 3
+    stopCountersGame()
+    state.view.message.classList.remove('hide')
+    changeViewButtonsVisibility('stopGame')
+    return result
+}
+
+function endGame() {
+    state.view.message.textContent = 'Game over'
+    state.view.message.classList.remove('hide')
+    playSound('gameover.wav')
+    const result = stopGame()
+    setTimeout(() => 
+    state.view.message.textContent = `Score:${result}`,
+    1000)
 }
 
 function randomSquare () {
@@ -154,10 +111,14 @@ function randomSquare () {
     state.values.hitPosition = randomSquare.id
 }
 
-function endGame() {
-    state.view.message.textContent = 'Game over'
-    changeView('endGame')
-    playSound('gameover.wav')
+function countDown () {
+    state.values.currentTime--
+    state.view.timeLeft.textContent = state.values.currentTime
+
+    if(state.values.currentTime === 0) {
+        state.view.message.textContent = `Score:${stopGame()}`
+        playSound('final.wav')
+    }
 }
 
 function addListenerHitBox () {
@@ -175,13 +136,65 @@ function addListenerHitBox () {
                 state.view.lives.textContent = `x${state.values.livesCounter}`
                 playSound('wrong.mp3')
             }
+
             if(state.values.livesCounter === 0) {
-                stopGame()
                 endGame()
-                changeView('endGame')
+                changeViewButtonsVisibility('endGame')
             }
         })
     })
+}
+
+function addPauseEvent () {
+    state.view.pauseButton.addEventListener('click', pauseGame)
+}
+
+function addStopEvent () {
+    state.view.stopButton.addEventListener('click', () => {
+        state.view.message.textContent = `Score:${stopGame()}`
+    })
+}
+
+function countDownToStart() {
+    playSound('countdown.wav')
+    state.values.startCounter--
+    state.view.message.textContent = state.values.startCounter
+
+    if (!state.values.startCounter) {
+        clearInterval(state.actions.startCounterId)
+        playSound('goo.wav')
+        state.view.message.textContent = 'GO!'
+        
+        setTimeout(() => {
+            state.view.message.classList.add('hide')
+
+            changeViewButtonsVisibility('countDownToStart')            
+            state.actions.timerId = setInterval(randomSquare, state.values.gameVelocity)
+            state.actions.countDownTimerId = setInterval(countDown, 1000)
+
+            if(!state.values.listenersControl) {
+                addListenerHitBox()
+                addPauseEvent()
+                addStopEvent()
+                state.values.listenersControl = true // para não precisar remover e readicionar estes listeners toda vez que recomeçar o jogo.
+            }
+        }, 500)
+    }
+}
+
+function startGame () {
+    state.view.message.textContent = state.values.startCounter
+    state.view.score.textContent = state.values.result
+    state.view.lives.textContent = `x${state.values.livesCounter}`
+    state.view.timeLeft.textContent = state.values.currentTime
+    state.actions.startCounterId = setInterval(countDownToStart, 500)
+    playSound('countdown.wav')
+    state.view.message.classList.remove('hide')
+    changeViewButtonsVisibility('startGame')        
+}
+
+function addStartEvent () {
+    state.view.startButton.addEventListener('click', startGame)
 }
 
 function init() {
@@ -190,4 +203,3 @@ function init() {
 
 init()
 
-// playSound()
